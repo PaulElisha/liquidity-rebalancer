@@ -14,5 +14,5 @@ docs/
 .env
 
 # Ignore specific directories and files
-paul/
+.paul
 paul.pub/
