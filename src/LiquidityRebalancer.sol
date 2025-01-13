@@ -81,11 +81,12 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
     }
 
     function addLiquidity(
-        int24 tickSpacing,
-        uint256 priceAdjustment,
+        int24 tickLower,
+        int24 tickUpper,
         uint256 amount0,
         uint256 amount1,
     ) public {
+        require(tickLower < tickUpper, "Invalid tick range");
         require(amount0 > 0 && amount1 > 0, "Invalid token amounts");
 
         liquidityManager.depositLiquidity(amount0, amount1);
@@ -99,17 +100,10 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
 
         ) = _getParameter();
 
-        (int24 newTickLower, int24 newTickUpper) = check(
-            tickSpacing,
-            priceAdjustment
-        );
-
-        require(newTickLower < newTickUpper, "Invalid tick range");
-
         (uint160 sqrtPriceX96, , , , , , ) = pool_.slot0;
 
-        uint160 newSqrtRatioAX96 = TickMath.getSqrtRatioAtTick(newTickLower);
-        uint160 newSqrtRatioBX96 = TickMath.getSqrtRatioAtTick(newTickUpper);
+        uint160 newSqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 newSqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
 
         uint128 liquidityDelta = sqrtPriceX96.calculateOptimalLiquidity(
             newSqrtPriceAX96,
@@ -123,7 +117,7 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
         IERC20(token0_).approve(address(pool_), amount0);
         IERC20(token1_).approve(address(pool_), amount1);
 
-        pool_.mint(msg.sender, newTickLower, newTickUpper, liquidityDelta, "");
+        pool_.mint(msg.sender, tickLower, tickUpper, liquidityDelta, "");
     }
 
     function check(
@@ -171,7 +165,7 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
             liquidity
         );
 
-        (int24 newTickLower, int24 newTickUpper) = check(tickSpacing);
+        (int24 newTickLower, int24 newTickUpper) = check(tickSpacing, priceAdjustmentFactor);
 
         addLiquidity(newTickLower, newTickUpper, amount0, amount1);
     }
