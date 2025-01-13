@@ -5,10 +5,9 @@ import "./interfaces/ILiquidityRebalancer.sol";
 import "./LiquidityManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@dragonswap/v2-periphery/contracts/libraries/LiquidityAmounts.sol";
-import "@dragonswap/v2-periphery/contracts/base/PeripheryImmutableState.sol";
 import "@dragonswap/v2-periphery/contracts/base/LiquidityManagement.sol";
-import "@dragonswap/v2-periphery/contracts/libraries/TickMath.sol";
-import "@dragonswap/v2-core/contracts/interfaces/pool/IDragonswapV2Pool.sol";
+import "@dragonswap/v2-core/contracts/libraries/TickMath.sol";
+import "@dragonswap/v2-core/contracts/interfaces/IDragonswapV2Pool.sol";
 
 // initialize
 // set time and price logic
@@ -36,7 +35,7 @@ contract LiquidityRebalancer is LiquidityManager, ILiquidityRebalancer {
         (
             address token0_,
             address token1_,
-            IDragonPool pool_,
+            IDragonswapV2Pool pool_,
             ,
             ,
 
@@ -59,13 +58,20 @@ contract LiquidityRebalancer is LiquidityManager, ILiquidityRebalancer {
             liquidity
         );
 
-        pool.burn(tickLower, tickUpper, liquidity);
+        (uint256 amount0_, uint256 amount1_) = pool.burn(
+            tickLower,
+            tickUpper,
+            liquidity
+        );
+
+        require(amount0 == amount0_ && amount1 == amount1_);
+
         pool.collect(
             msg.sender,
             tickLower,
             tickUpper,
-            uint128(amount0),
-            uint128(amount1)
+            uint128(amount0_),
+            uint128(amount1_)
         );
     }
 
