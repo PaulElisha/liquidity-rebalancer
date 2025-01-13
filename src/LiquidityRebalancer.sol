@@ -129,7 +129,7 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
     function check(
         int24 tickStep,
         uint256 priceAdjustmentFactor
-    ) external withinCooldown returns (int24 newTickLower, int24 newTickUpper) {
+    ) external returns (int24 newTickLower, int24 newTickUpper) {
         uint256 currentPrice = getLatestPrice();
         uint160 currentSqrtPrice = currentPrice.getSqrtPriceFromCurrentPrice();
 
