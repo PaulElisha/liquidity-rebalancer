@@ -33,22 +33,16 @@ contract LiquidityRebalancerFactory is ILiquidityRebalancerFactory {
             "Liquidity Rebalancer Factory: Rebalancer exists"
         );
 
-        bytes memory bytecode = abi.encodePacked(
-            type(LiquidityRebalancer).creationCode,
-            abi.encode(pool, token0, token1)
-        );
-        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
-        assembly {
-            rebalancer := create2(0, add(bytecode, 32), mload(bytecode), salt)
-        }
+        LiquidityRebalancer liquidityRebalancer = new LiquidityRebalancer();
+
         require(
-            rebalancer != address(0),
+            address(liquidityRebalancer) != address(0),
             "Liquidity Rebalancer Factory: Failed to deploy"
         );
 
-        getRebalancer[token0][token1] = rebalancer;
-        getRebalancer[token1][token0] = rebalancer;
-        allRebalancers.push(rebalancer);
+        getRebalancer[token0][token1] = liquidityRebalancer;
+        getRebalancer[token1][token0] = liquidityRebalancer;
+        allRebalancers.push(liquidityRebalancer);
 
         emit RebalancerCreated(
             token0,
