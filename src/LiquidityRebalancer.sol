@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./lib.sol";
-import "./LiquidityManager.sol";
 import "./interfaces/ILiquidityRebalancer.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@dragonswap/v2-periphery/contracts/libraries/LiquidityAmounts.sol";
-import "@dragonswap/v2-periphery/contracts/base/LiquidityManagement.sol";
 import "@dragonswap/v2-core/contracts/libraries/TickMath.sol";
 import "@dragonswap/v2-core/contracts/interfaces/IDragonswapV2Pool.sol";
 
@@ -22,33 +19,35 @@ import "@dragonswap/v2-core/contracts/interfaces/IDragonswapV2Pool.sol";
 //
 
 contract LiquidityRebalancer is ILiquidityRebalancer {
-    using Lib for uint160;
-    using Lib for uint256;
 
-    LiquidityManager liquidityManager;
+    address token0;
+    address token1;
+    address factory;
+    address priceFeed;
+    IDragonswapV2Pool public pool;
 
     constructor() {
         factory = msg.sender;
-        liquidityManager = new LiquidityManager();
+
+    }
+
+    function initialize(address _pool, address token0_, address token1_) public {
+        if(uint160(token0_) < uint160(token1_)) {
+
+        pool = IDragonswapV2Pool(_pool);
+        token0 = token0_;
+        token1 = token1_;
+        }
     }
 
     function withdrawLiquidity(
         int24 tickLower,
         int24 tickUpper,
         uint128 liquidity
-    ) public returns (uint256 amount0, uint256 amount1) {
+    ) private returns(uint256 amount0, uint256 amount1) {
         require(tickLower < tickUpper, "Invalid tick range");
 
-        (
-            address token0_,
-            address token1_,
-            IDragonswapV2Pool pool_,
-            ,
-            ,
-
-        ) = _getParameter();
-
-        (uint160 sqrtPriceX96, int24 tick, , , , , ) = pool_.slot0;
+        (uint160 sqrtPriceX96, int24 tick, , , , , ) = pool.slot0;
 
         uint160 oldSqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
         uint160 oldSqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
@@ -65,14 +64,14 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
             liquidity
         );
 
-        (uint256 amount0_, uint256 amount1_) = pool_.burn(
+        (uint256 amount0_, uint256 amount1_) = pool.burn(
             tickLower,
             tickUpper,
             liquidity
         );
 
-        pool_.collect(
-            msg.sender,
+        pool.collect(
+            address(msg.sender),
             tickLower,
             tickUpper,
             uint128(amount0_),
@@ -85,22 +84,14 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
         int24 tickUpper,
         uint256 amount0,
         uint256 amount1,
-    ) public {
+    ) private {
         require(tickLower < tickUpper, "Invalid tick range");
         require(amount0 > 0 && amount1 > 0, "Invalid token amounts");
 
-        liquidityManager.depositLiquidity(amount0, amount1);
+            address token0_ = token0;
+            address token1_ = token1;
 
-        (
-            address token0_,
-            address token1_,
-            IDragonPool pool_,
-            ,
-            ,
-
-        ) = _getParameter();
-
-        (uint160 sqrtPriceX96, , , , , , ) = pool_.slot0;
+        (uint160 sqrtPriceX96, , , , , , ) = pool.slot0;
 
         uint160 newSqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
         uint160 newSqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
@@ -114,16 +105,16 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
 
         require(liquidityDelta > 0, "Insufficient liquidity");
 
-        IERC20(token0_).approve(address(pool_), amount0);
-        IERC20(token1_).approve(address(pool_), amount1);
+        IERC20(token0_).approve(address(pool), amount0);
+        IERC20(token1_).approve(address(pool), amount1);
 
-        pool_.mint(msg.sender, tickLower, tickUpper, liquidityDelta, "");
+        pool.mint(msg.sender, tickLower, tickUpper, liquidityDelta, hex"");
     }
 
     function check(
         int24 tickStep,
         uint256 priceAdjustmentFactor
-    ) external returns (int24 newTickLower, int24 newTickUpper) {
+    ) private returns (int24 newTickLower, int24 newTickUpper) {
         uint256 currentPrice = getLatestPrice();
         uint160 currentSqrtPrice = currentPrice.getSqrtPriceFromCurrentPrice();
 
@@ -146,7 +137,7 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
         );
     }
 
-    function getLatestPrice() public view returns (uint256) {
+    function getLatestPrice() private view returns (uint256) {
         (, int256 price, , , ) = priceFeed.latestRoundData();
         require(price > 0, "Price is zero");
         return uint256(price);
@@ -159,13 +150,14 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
         int24 tickSpacing,
         uint256 priceAdjustmentFactor
     ) external {
-        (uint256 amount0, uint256 amount1) = withdrawLiquidity(
+        (uint256 amount0, uint256 amount1) =  withdrawLiquidity(
             oldTickLower,
             oldTickUpper,
             liquidity
         );
 
         (int24 newTickLower, int24 newTickUpper) = check(tickSpacing, priceAdjustmentFactor);
+
 
         addLiquidity(newTickLower, newTickUpper, amount0, amount1);
     }

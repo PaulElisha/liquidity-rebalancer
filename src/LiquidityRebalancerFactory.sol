@@ -42,7 +42,10 @@ contract LiquidityRebalancerFactory is ILiquidityRebalancerFactory {
 
         getRebalancer[token0][token1] = liquidityRebalancer;
         getRebalancer[token1][token0] = liquidityRebalancer;
+
         allRebalancers.push(liquidityRebalancer);
+
+        liquidityRebalancer.initialize(pool, tokenA, tokenB);
 
         emit RebalancerCreated(
             token0,
