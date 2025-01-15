@@ -37,6 +37,10 @@ contract LiquidityRebalancer is ILiquidityRebalancer {
         pool = IDragonswapV2Pool(_pool);
         token0 = token0_;
         token1 = token1_;
+        } else {
+       pool = IDragonswapV2Pool(_pool);
+        token0 = token1_;
+        token1 = token0_;
         }
     }
 
